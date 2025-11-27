@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring Serveur Luanti</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .server-info {
+            display: flex;
+            gap: 30px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #666;
+        }
+
+        .info-value {
+            color: #333;
+        }
+
+        .worlds-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 25px;
+        }
+
+        .world-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .world-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .world-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .world-name {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            background: #4caf50;
+            color: white;
+        }
+
+        .status-inactive {
+            background: #f44336;
+            color: white;
+        }
+
+        .world-details {
+            display: grid;
+            gap: 15px;
+        }
+
+        .detail-item {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .detail-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 5px;
+            display: none;
+        }
+
+        .detail-value {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .port-icon::before {
+            content: "Port: ";
+            color: #666;
+            font-weight: normal;
+        }
+
+        .restart-icon::before {
+            content: "Redémarrage: ";
+            color: #666;
+            font-weight: normal;
+        }
+
+        .container-icon::before {
+            content: "Conteneur: ";
+            color: #666;
+            font-weight: normal;
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.5em;
+            padding: 50px;
+        }
+
+        .error {
+            background: rgba(244, 67, 54, 0.95);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .last-update {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.9);
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        .refresh-indicator {
+            width: 12px;
+            height: 12px;
+            background: #4caf50;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Monitoring Serveur Luanti</h1>
+            <div class="server-info" id="serverInfo">
+                <div class="loading">Chargement des données...</div>
+            </div>
+        </header>
+
+        <div class="worlds-grid" id="worldsGrid">
+            <div class="loading">Chargement des mondes...</div>
+        </div>
+
+        <div class="last-update">
+            <div id="lastUpdate"></div>
+            <div class="auto-refresh">
+                <div class="refresh-indicator"></div>
+                <span>Mise à jour automatique toutes les 30 secondes</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fonction pour récupérer et afficher les données
+        async function fetchData() {
+            try {
+                const response = await fetch('/data/stats.json');
+                if (!response.ok) throw new Error('Erreur de chargement des données');
+                
+                const data = await response.json();
+                displayServerInfo(data);
+                displayWorlds(data.worlds);
+                updateLastUpdate(data.timestamp);
+            } catch (error) {
+                console.error('Erreur:', error);
+                document.getElementById('worldsGrid').innerHTML = `
+                    <div class="error">
+                        Erreur de chargement des données<br>
+                        ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // Afficher les informations du serveur
+        function displayServerInfo(data) {
+            const serverInfo = document.getElementById('serverInfo');
+            serverInfo.innerHTML = `
+                <div class="info-item">
+                    <span class="info-label">Serveur:</span>
+                    <span class="info-value">${data.server_hostname}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Uptime serveur:</span>
+                    <span class="info-value">${data.server_uptime}</span>
+                </div>
+            `;
+        }
+
+        // Afficher les mondes
+        function displayWorlds(worlds) {
+            const worldsGrid = document.getElementById('worldsGrid');
+            worldsGrid.innerHTML = worlds.map(world => `
+                <div class="world-card">
+                    <div class="world-header">
+                        <div class="world-name">${world.name}</div>
+                        <div class="status-badge status-${world.status}">
+                            ${world.status === 'active' ? 'En ligne' : 'Arrêté'}
+                        </div>
+                    </div>
+                    <div class="world-details">
+                        <div class="detail-item container-icon">
+                            <div class="detail-label">Conteneur</div>
+                            <div class="detail-value">${world.container}</div>
+                        </div>
+                        <div class="detail-item port-icon">
+                            <div class="detail-label">Port</div>
+                            <div class="detail-value">${world.port}</div>
+                        </div>
+                        <div class="detail-item restart-icon">
+                            <div class="detail-label">Dernier redémarrage</div>
+                            <div class="detail-value">${formatDate(world.last_restart)}</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Formater la date
+        function formatDate(dateStr) {
+            if (dateStr === "Jamais démarré") return dateStr;
+            try {
+                const date = new Date(dateStr);
+                return date.toLocaleString('fr-FR');
+            } catch (e) {
+                return dateStr;
+            }
+        }
+
+        // Mettre à jour l'heure de dernière mise à jour
+        function updateLastUpdate(timestamp) {
+            const date = new Date(timestamp);
+            document.getElementById('lastUpdate').textContent = 
+                `Dernière mise à jour: ${date.toLocaleString('fr-FR')}`;
+        }
+
+        // Charger les données au démarrage
+        fetchData();
+
+        // Actualiser automatiquement toutes les 30 secondes
+        setInterval(fetchData, 30000);
+    </script>
+</body>
+</html>
