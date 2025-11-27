@@ -101,20 +101,3 @@ Ajoutez ces lignes :
 ```
 
 
-
-## Configuration
-
-### Personnalisation des conteneurs
-
-Modifiez les variables dans `scripts/collect_stats.sh` :
-
-```bash
-declare -A CONTAINERS=(
-    ["hote"]="30000"
-    ["creatif"]="30001"
-    ["exploration"]="30002"
-    ["survie"]="30003"
-    ["custom"]="30004"
-)
-```
-
