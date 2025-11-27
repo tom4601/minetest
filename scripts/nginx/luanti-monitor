@@ -1,0 +1,36 @@
+server {
+    listen 80;
+    server_name _;
+    
+    # Racine du site
+    root /var/www/luanti-monitor;
+    index index.html;
+    
+    # Logs
+    access_log /var/log/nginx/luanti-monitor-access.log;
+    error_log /var/log/nginx/luanti-monitor-error.log;
+    
+    # Page principale
+    location / {
+        try_files $uri $uri/ =404;
+    }
+    
+    # API pour les données JSON
+    location /data/ {
+        alias /var/www/luanti-monitor/data/;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
+        types {
+            application/json json;
+        }
+    }
+    
+    # Sécurité: désactiver l'affichage des répertoires
+    autoindex off;
+    
+    # Sécurité: headers additionnels
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+}
